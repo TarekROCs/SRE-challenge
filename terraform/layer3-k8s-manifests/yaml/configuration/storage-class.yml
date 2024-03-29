@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: alicloud-disk-essd-pl0
+parameters:
+  encrypted: "false"
+  performanceLevel: PL0
+  type: cloud_essd
+provisioner: diskplugin.csi.alibabacloud.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

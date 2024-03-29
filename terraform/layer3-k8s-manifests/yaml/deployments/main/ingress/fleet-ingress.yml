@@ -1,0 +1,22 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: fleet-ingress
+  namespace: main
+   
+spec:
+  entryPoints:
+    - websecure  
+  routes:
+    - match: Host('monitoring.open-innovation.com') && Path('/mainfleet')
+      kind: Rule
+      middlewares:
+        - name: main-strip-prefix 
+      services:
+        - name: open-innovation-main-fleet-server-agent-http
+          port: 8220
+          scheme: https
+          namespace: main
+          serversTransport: main-traefik-servers-transport
+  tls:
+    secretName: http-tls

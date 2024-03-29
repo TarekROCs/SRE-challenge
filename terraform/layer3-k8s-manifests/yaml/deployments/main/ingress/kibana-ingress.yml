@@ -1,0 +1,20 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: kibana-ingress
+  namespace: main
+   
+spec:
+  entryPoints:
+    - websecure  
+  routes:
+    - match: Host(`monitoring.open-innovation.com`)
+      kind: Rule
+      services:
+        - name: open-innovation-main-kibana-kb-http
+          port: 5601
+          scheme: https
+          namespace: main
+          serversTransport: main-traefik-servers-transport
+  tls:
+    secretName: http-tls

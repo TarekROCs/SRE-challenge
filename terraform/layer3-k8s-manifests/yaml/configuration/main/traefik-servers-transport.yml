@@ -1,0 +1,11 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: ServersTransport
+metadata:
+  name: main-traefik-servers-transport
+  namespace: main
+spec:
+  insecureSkipVerify: true
+  forwardingTimeouts:
+    dialTimeout: "5m"
+    responseHeaderTimeout: "5m"
+

@@ -1,0 +1,22 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: elasticsearch-ingress
+  namespace: main
+  
+spec:
+  entryPoints:
+    - websecure  
+  routes:
+    - match: Host(`monitoring.open-innovation.com`) && Path(`/maines`)
+      kind: Rule
+      middlewares:
+        - name: main-strip-prefix 
+      services:
+        - name: open-innovation-main-elasticsearch-es-http
+          port: 9200
+          scheme: https
+          namespace: main
+          serversTransport: main-traefik-servers-transport
+  tls:
+    secretName: http-tls

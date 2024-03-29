@@ -1,0 +1,24 @@
+apiVersion: agent.k8s.elastic.co/v1alpha1
+kind: Agent
+metadata:
+  name: open-innovation-main-fleet-server
+  namespace: main
+spec:
+  version: latest
+  kibanaRef:
+    name: open-innovation-main-kibana
+    namespace: main
+  elasticsearchRefs:
+  - name: open-innovation-main-elasticsearch
+    namespace: main
+  mode: fleet
+  policyID: eck-fleet-server
+  fleetServerEnabled: true
+  deployment:
+    replicas: 2
+    podTemplate:
+      spec:
+        serviceAccountName: open-innovation-main-fleet-server
+        automountServiceAccountToken: true
+        securityContext:
+          runAsUser: 0

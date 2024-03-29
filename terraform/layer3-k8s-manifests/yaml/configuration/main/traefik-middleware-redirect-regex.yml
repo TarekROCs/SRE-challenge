@@ -1,0 +1,9 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: main-redirect-regex
+  namespace: main
+spec:
+  redirectRegex:
+    regex: ^https://monitoring.open-innovation.com/mainkb
+    replacement: https://monitoring.open-innovation.com/login

@@ -1,0 +1,87 @@
+name: main-pipeline
+#
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    name: check secrets
+    runs-on: self-hosted-runner
+
+    steps:
+      - name: get secrets
+        env:
+          key1: ${{ secrets.value1 }}
+          key2: ${{ secrets.value2 }}
+          key3: ${{ secrets.value3 }}
+
+  build:
+    needs: test
+    name: Building and Pushing the Image
+    runs-on: self-hosted-runner
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION_PROD }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.1.1
+        with:
+          cosign-release: 'v2.1.1'
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+
+        run: |
+          git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$git_hash . -f ./Dockerfile.prod --build-arg VITE_NODE_ENV=${{ secrets.OSP_VITE_NODE_ENV }} 
+          echo "Pushing image to ECR..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$git_hash
+          echo "Signing image..."
+          cosign sign --yes --key awskms:///arn:aws:kms:eu-west-1:197356055907:alias/cosign-key $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          cosign sign --yes --key awskms:///arn:aws:kms:eu-west-1:197356055907:alias/cosign-key $ECR_REGISTRY/$ECR_REPOSITORY:$git_hash
+          echo "Pushing signed image..."
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$git_hash
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Image pushed successfully"
+      - name: Clone open-innovation-app repo
+        uses: actions/checkout@v2
+        with:
+          ssh-key: ${{ secrets.open-innovation-app-PAT }}
+          repository: open-innovation/open-innovation-app
+          path: ./open-innovation-app
+          submodules: recursive
+
+      - name: 'Update image version'
+        env:
+          ECR_REPOSITORY: ${{ secrets.ECR_REPO }}
+          FILE_NAME: ${{ secrets.FILE_NAME }}
+        run: |
+          cd open-innovation-app
+          ls -la
+          git_hash=$(git rev-parse --short "$GITHUB_SHA")
+          version=$(cat $FILE_NAME | grep $ECR_REPOSITORY: | cut -f3 -d":" | awk '{ print $1 }')
+          echo $git_hash
+          echo $version
+          sed -i "s/$version/$git_hash/" $FILE_NAME
+          cat $FILE_NAME
+          git config --global user.name "github-runner"
+          git config --global user.email "github-runner@open-innovation.com"
+          git add .
+          git commit -a -m "[UPDATE] image version to :$git_hash"
+          git push

@@ -1,0 +1,131 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: open-innovation-main-elasticsearch
+  namespace: main
+spec:
+  version: latest
+  secureSettings:
+  - secretName: s3-keys
+  nodeSets:
+  - name: masters
+    count: 3
+    config:
+      node.roles: ["master", "remote_cluster_client"]
+      xpack.security.authc.token.enabled: true
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 2Gi
+            requests:
+              memory: 2Gi         
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']        
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+         - ReadWriteOnce
+        resources:
+          requests:
+            storage: 40Gi
+        storageClassName: "alicloud-disk-essd-pl0"
+  - name: hot-nodes
+    count: 3
+    config:
+      node.roles: ["data", "ingest", "transform", "remote_cluster_client"] 
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 4Gi  
+            requests:
+              memory: 4Gi        
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']           
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+         - ReadWriteOnce
+        resources:
+          requests:
+            storage: 200Gi
+        storageClassName: "alicloud-disk-essd-pl0"
+  - name: ml-nodes
+    count: 1
+    config:
+      node.roles: ["ml"]
+      reindex.remote.whitelist: ['']
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 2Gi   
+            requests:
+              memory: 2Gi             
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']            
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+         - ReadWriteOnce
+        resources:
+          requests:
+            storage: 40Gi 
+        storageClassName: "alicloud-disk-essd-pl0"  
+  - name: frozen-nodes
+    count: 1 
+    config:
+      node.roles: ["data_frozen"]
+      reindex.remote.whitelist: ['']
+    podTemplate:
+      spec:
+        containers:
+        - name: elasticsearch
+          resources:
+            limits:
+              memory: 4Gi
+              cpu: 2
+            requests:
+              memory: 4Gi 
+              cpu: 2       
+        initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144']      
+    volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes:
+         - ReadWriteOnce
+        resources:
+          requests:
+            storage: 200Gi 
+        storageClassName: "alicloud-disk-essd-pl0"
